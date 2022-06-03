@@ -1,12 +1,20 @@
-$url = "http://localhost:8080/"
+Add-Type -AssemblyName "System.Web"
+
+$port = 8080
+
+$url = "http://localhost:$($port)/"
 $http = [System.Net.HttpListener]::new() 
 
 $http.Prefixes.Add($url)
 $http.Start()
 
+$PSScriptRoot
+
 if($http.IsListening){
     Write-Host "Running" -BackgroundColor Green -ForegroundColor White
-    Start-Process "$($url)/static/index.html"
+
+    # navigate to main page ...
+    Start-Process "$($url)static/index.html"
 }
 
 function Write-Response([System.Net.HttpListenerContext]$context, [string] $response, [int] $StatusCode = 200){
@@ -18,22 +26,47 @@ function Write-Response([System.Net.HttpListenerContext]$context, [string] $resp
 }
 
 while ($http.IsListening) {
-
+    
+    # Cleanup of the path
     $context = $http.GetContext()
     $segments = $context.Request.RawUrl.Split("/")
     $segments = $segments.where({$_ -ne ""})
-    $segments = $segments.where({$_ -ne ".."})
-    $segments = $segments.where({$_ -ne "."})
     $path = $segments -join "/"
 
-    if ($context.Request.HttpMethod -eq 'GET' -and $context.Request.RawUrl -eq '/bye') {
+    # Exit application
+    # GET /mgzcli
+    if ($context.Request.HttpMethod -eq 'GET' -and $segments[0] -eq 'mgzcli') {
+        Write-Response $context "running mgzcli"
+        break
+    }
+
+    # Exit application
+    # GET /bye
+    if ($context.Request.HttpMethod -eq 'GET' -and $segments[0] -eq 'bye') {
         Write-Response $context "Bye!"
         break
     }
 
+    # Serve static files 
+    # GET /static/*
     if ($context.Request.HttpMethod -eq 'GET' -and $segments[0] -eq 'static') {
-        [string]$html = Get-Content "./$($path)" -Raw
-        Write-Response $context $html
+        
+        $path
+        if(-not $(Evaluate-Path $path.replace('/',"\")).StartsWith($PSScriptRoot + '\static','CurrentCultureIgnoreCase')) {
+            Write-Response $context "not found!" 404
+            continue
+        }
+        
+        $filepath = "./$($path)"
+        if($(Test-Path -Path $filepath) -eq $false){
+            Write-Response $context "not found!" 404
+            continue
+        }
+
+        [string]$content = Get-Content "$($filepath)" -Raw
+        Write-Response $context $content
+        $context.Response.ContentType = [System.Web.MimeMapping]::GetMimeMapping($filepath)
+        $context.Response.ContentType
         continue
     }
 
