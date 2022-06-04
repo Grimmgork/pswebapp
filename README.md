@@ -3,6 +3,7 @@ This lil collection of files brings the rich gui capabilities of the Web to your
 It is the perfect replacement for HTA applications:
 - The rich UI talks to the Powershell server
 - The Powershell Server runs all System commands and responds to the UI
+And thereby removing the need to use ActiveX components.
 
 You just have to add more UI to the static folder and extend the Endpoints in the Powershell script to your own needs.
 For correct Local-App-Behavior, every page on your Webapp has to run the */static/base.js* on load.
